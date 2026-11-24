@@ -1,0 +1,189 @@
+[project]
+name = "reconlake"
+version = "1.0.0"
+description = "A secure, reconciliation-first UPI-style transaction lakehouse built on free open-source tools."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Faisal Faraaz Syed" }]
+requires-python = ">=3.11"
+keywords = ["upi", "reconciliation", "lakehouse", "delta-lake", "pyspark", "fintech", "security"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Financial and Insurance Industry",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Office/Business :: Financial",
+]
+
+# ── Core runtime dependencies ────────────────────────────────────────────────
+dependencies = [
+  "pydantic==2.9.2",
+  "pydantic-settings==2.5.2",
+  "jsonschema==4.23.0",
+  "pyyaml==6.0.2",
+  "click==8.1.7",
+  "cryptography==50.0.0",
+  "pyarrow==23.0.1",
+  "httpx==0.27.2",
+  "tenacity==9.0.0",
+  "structlog==24.4.0",
+  "python-dateutil==2.9.0.post0",
+  "prometheus-client==0.21.0",
+]
+
+# ── Optional dependency groups ───────────────────────────────────────────────
+[project.optional-dependencies]
+spark = [
+  "pyspark==3.5.3",
+  "delta-spark==3.2.0",
+  "kafka-python==2.0.2",
+  "boto3==1.35.36",
+  "psycopg2-binary==2.9.9",
+  "sqlalchemy==2.0.35",
+  "openlineage-python==1.24.0",
+  "hvac==2.3.0",
+]
+
+dev = [
+  "ruff==0.6.9",
+  "mypy==1.11.2",
+  "types-PyYAML==6.0.12.20240917",
+  "types-jsonschema==4.23.0.20240813",
+  "types-python-dateutil==2.9.0.20241003",
+  "pre-commit==3.8.0",
+  "rich==13.9.2",
+  "mkdocs==1.6.1",
+  "mkdocs-material==9.7.7",
+  "pymdown-extensions==11.0.1",
+]
+
+test = [
+  "pytest==9.0.3",
+  "pytest-cov==5.0.0",
+  "pytest-mock==3.14.0",
+  "hypothesis==6.115.5",
+  "faker==30.3.0",
+]
+
+airflow = [
+  "apache-airflow==2.10.3",
+  "apache-airflow-providers-postgres==5.12.0",
+  "apache-airflow-providers-apache-kafka==1.3.1",
+  "apache-airflow-providers-amazon==8.30.0",
+]
+
+dbt = [
+  "dbt-core==1.8.5",
+  "dbt-postgres==1.8.5",
+  "sqlfluff==3.2.5",
+  "sqlfluff-templater-dbt==3.2.5",
+]
+
+quality = [
+  "great-expectations==0.18.19",
+]
+
+security = [
+  "bandit==1.7.10",
+  "pip-audit==2.7.3",
+]
+
+# ── Entry points ─────────────────────────────────────────────────────────────
+[project.scripts]
+reconlake-gen = "generator.cli:main"
+reconlake-shred = "security.shred:main"
+reconlake-verify-audit = "security.verify_audit:main"
+
+# ── Build system ─────────────────────────────────────────────────────────────
+[build-system]
+requires = ["setuptools>=72", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["contracts*", "generator*", "pipelines*", "security*", "quality*", "dags*", "scripts*"]
+
+# ── Ruff ─────────────────────────────────────────────────────────────────────
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["contracts", "generator", "pipelines", "security", "quality", "dags", "scripts", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "W",   # pycodestyle warnings
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "C4",  # flake8-comprehensions
+  "UP",  # pyupgrade
+  "S",   # flake8-bandit
+  "N",   # pep8-naming
+  "RUF", # ruff-specific rules
+]
+ignore = [
+  "S101",  # allow assert in tests and invariants
+  "S311",  # pseudo-random generator intentionally used for seeded synthetic data
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S"]
+"generator/**/*.py" = ["S311"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["contracts", "generator", "pipelines", "security", "quality", "dags", "scripts"]
+
+# ── Mypy ─────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = [
+  "pyspark.*",
+  "delta.*",
+  "kafka.*",
+  "airflow.*",
+  "dbt.*",
+  "great_expectations.*",
+  "hvac.*",
+  "openlineage.*",
+  "pyarrow.*",
+  "boto3.*",
+  "prometheus_client.*",
+]
+ignore_missing_imports = true
+
+# ── Pytest ───────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = [
+  "--strict-markers",
+  "--tb=short",
+]
+markers = [
+  "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+  "integration: marks tests that require Docker or multi-module integration",
+  "unit: marks pure unit tests",
+  "property: marks Hypothesis property-based tests",
+  "chaos: marks chaos and recovery tests",
+]
+
+# ── Bandit ───────────────────────────────────────────────────────────────────
+[tool.bandit]
+targets = ["contracts", "generator", "pipelines", "security", "quality", "dags", "scripts"]
+exclude_dirs = ["tests", ".venv", "build", "dist"]
+skips = ["B101", "B311"]
+severity = "medium"
+confidence = "medium"

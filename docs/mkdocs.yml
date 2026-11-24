@@ -1,0 +1,44 @@
+site_name: ReconLake
+site_description: Reconciliation-first, security-by-design UPI transaction lakehouse on free open-source tools
+docs_dir: .
+site_dir: ../site
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Demo Script: demo.md
+  - Traceability Matrix: traceability.md
+  - SLOs: slo.md
+  - Benchmarks: benchmarks.md
+  - Reconciliation Results: recon-results.md
+  - Security:
+      - Threat Model (STRIDE): security/threat-model.md
+      - RBAC Access Matrix: security/access-matrix.md
+  - ADRs:
+      - ADR-0001 Open-Source Stack & SeaweedFS: adr/ADR-0001-use-free-open-source-stack.md
+      - ADR-0002 Pin Spark & Delta Versions: adr/ADR-0002-pin-spark-delta-versions.md
+      - ADR-0003 Kafka KRaft Mode: adr/ADR-0003-kafka-kraft-mode.md
+      - ADR-0004 Envelope Encryption & Crypto-Shredding: adr/ADR-0004-envelope-encryption-and-crypto-shredding.md
+      - ADR-0005 Three-Way Reconciliation: adr/ADR-0005-three-way-reconciliation-architecture.md
+      - ADR-0006 Data Contracts & DQ Gate: adr/ADR-0006-data-contracts-and-quarantine-gates.md
+      - ADR-0007 PostgreSQL RLS & Roles: adr/ADR-0007-postgresql-rls-and-least-privilege.md
+      - ADR-0008 Laptop 8GB Profiles & Fallback: adr/ADR-0008-local-python-fallback-and-laptop-8gb-profiles.md
+  - Runbooks:
+      - DQ Score Below Threshold: runbooks/dq-score-below-threshold.md
+      - Stream Lag High: runbooks/stream-lag.md
+      - Failed Airflow DAG: runbooks/failed-dag.md
+      - Quarantine Spike: runbooks/quarantine-spike.md
+      - Audit Chain Failure: runbooks/audit-chain-failure.md
+      - Certificate Expiry: runbooks/certificate-expiry.md
