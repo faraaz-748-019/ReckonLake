@@ -1,0 +1,59 @@
+version: "1.0.0"
+owner: "core-banking-team"
+source: "payer_bank_ledger"
+compatibility: backward
+freshness_sla_minutes: 10
+dq_threshold: 0.90
+description: "Payer Bank CBS UPI debit ledger contract."
+schema:
+  - name: bank_event_id
+    type: string
+    nullable: false
+    description: "Unique CBS bank event identifier (UUID)."
+  - name: shared_ref
+    type: string
+    nullable: false
+    description: "Shared transaction reference linking all 3 ledger views."
+  - name: txn_id
+    type: string
+    nullable: false
+    description: "Canonical transaction UUID."
+  - name: type
+    type: string
+    nullable: false
+    enum: [P2P, P2M, COLLECT]
+  - name: state
+    type: string
+    nullable: false
+    enum: [INITIATED, DEBIT_OK, CREDIT_OK, SUCCESS, FAILED, PENDING, REVERSED]
+  - name: amount_paise
+    type: long
+    nullable: false
+    minimum: 1
+    maximum: 20000000
+  - name: payer_vpa_token
+    type: string
+    nullable: false
+    pattern: "^[a-f0-9]{64}$"
+  - name: payee_vpa_token
+    type: string
+    nullable: false
+    pattern: "^[a-f0-9]{64}$"
+  - name: timestamp
+    type: string
+    nullable: false
+    format: "date-time"
+  - name: failure_code
+    type: string
+    nullable: true
+  - name: bank_id
+    type: string
+    nullable: false
+  - name: debit_reference
+    type: string
+    nullable: false
+semantic_rules:
+  - rule: amount_positive
+    expression: "amount_paise > 0"
+  - rule: vpa_token_hex64
+    expression: "payer_vpa_token and payee_vpa_token match ^[a-f0-9]{64}$"

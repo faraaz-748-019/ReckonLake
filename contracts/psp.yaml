@@ -1,0 +1,64 @@
+version: "1.0.0"
+owner: "psp-platform-team"
+source: "psp_ledger"
+compatibility: backward
+freshness_sla_minutes: 5
+dq_threshold: 0.90
+description: "PSP (Payment Service Provider) UPI event ledger contract."
+schema:
+  - name: psp_event_id
+    type: string
+    nullable: false
+    description: "Unique PSP event identifier (UUID)."
+  - name: shared_ref
+    type: string
+    nullable: false
+    description: "Shared transaction reference linking all 3 ledger views."
+  - name: txn_id
+    type: string
+    nullable: false
+    description: "Canonical transaction UUID."
+  - name: type
+    type: string
+    nullable: false
+    enum: [P2P, P2M, COLLECT]
+    description: "UPI transaction category."
+  - name: state
+    type: string
+    nullable: false
+    enum: [INITIATED, DEBIT_OK, CREDIT_OK, SUCCESS, FAILED, PENDING, REVERSED]
+    description: "Lifecycle state."
+  - name: amount_paise
+    type: long
+    nullable: false
+    minimum: 1
+    maximum: 20000000
+    description: "Transaction amount in integer paise."
+  - name: payer_vpa_token
+    type: string
+    nullable: false
+    pattern: "^[a-f0-9]{64}$"
+    description: "HMAC-SHA256 token of payer VPA (never raw VPA)."
+  - name: payee_vpa_token
+    type: string
+    nullable: false
+    pattern: "^[a-f0-9]{64}$"
+    description: "HMAC-SHA256 token of payee VPA (never raw VPA)."
+  - name: timestamp
+    type: string
+    nullable: false
+    format: "date-time"
+    description: "ISO-8601 UTC timestamp from PSP clock."
+  - name: failure_code
+    type: string
+    nullable: true
+    description: "NPCI-aligned failure code or NONE."
+  - name: psp_id
+    type: string
+    nullable: false
+    description: "PSP app identifier."
+semantic_rules:
+  - rule: amount_positive
+    expression: "amount_paise > 0"
+  - rule: vpa_token_hex64
+    expression: "payer_vpa_token and payee_vpa_token match ^[a-f0-9]{64}$"
