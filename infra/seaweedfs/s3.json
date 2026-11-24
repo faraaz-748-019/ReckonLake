@@ -1,0 +1,34 @@
+{
+  "identities": [
+    {
+      "name": "spark_bronze_writer",
+      "credentials": [
+        {
+          "accessKey": "reconlake-spark-bronze",
+          "secretKey": "local-dev-bronze-secret-rotate"
+        }
+      ],
+      "actions": ["Read:bronze/*", "Write:bronze/*", "Write:quarantine/*", "Read:quarantine/*"]
+    },
+    {
+      "name": "spark_silver_recon",
+      "credentials": [
+        {
+          "accessKey": "reconlake-spark-silver",
+          "secretKey": "local-dev-silver-secret-rotate"
+        }
+      ],
+      "actions": ["Read:bronze/*", "Read:silver/*", "Write:silver/*", "Read:gold/*", "Write:gold/*", "Write:quarantine/*"]
+    },
+    {
+      "name": "auditor_readonly",
+      "credentials": [
+        {
+          "accessKey": "reconlake-auditor",
+          "secretKey": "local-dev-auditor-secret-rotate"
+        }
+      ],
+      "actions": ["Read:quarantine/*", "Read:gold/*"]
+    }
+  ]
+}

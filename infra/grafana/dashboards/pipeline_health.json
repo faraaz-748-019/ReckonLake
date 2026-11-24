@@ -1,0 +1,9 @@
+{
+  "title": "ReconLake - Pipeline Health",
+  "uid": "reconlake-pipeline-health",
+  "schemaVersion": 39,
+  "panels": [
+    {"id": 1, "title": "Rows In by Layer", "type": "timeseries", "targets": [{"expr": "sum by (layer, source) (rate(reconlake_rows_in_total[5m]))"}]},
+    {"id": 2, "title": "Stream Processing Lag (p95)", "type": "timeseries", "targets": [{"expr": "histogram_quantile(0.95, sum(rate(reconlake_stream_lag_seconds_bucket[5m])) by (le, source))"}]}
+  ]
+}

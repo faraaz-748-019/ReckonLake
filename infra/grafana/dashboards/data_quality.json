@@ -1,0 +1,9 @@
+{
+  "title": "ReconLake - Data Quality",
+  "uid": "reconlake-data-quality",
+  "schemaVersion": 39,
+  "panels": [
+    {"id": 1, "title": "DQ Score by Source", "type": "gauge", "targets": [{"expr": "reconlake_dq_score"}]},
+    {"id": 2, "title": "Quarantined Rows by Reason", "type": "bargauge", "targets": [{"expr": "sum by (reason_code) (reconlake_rows_quarantined_total)"}]}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "title": "ReconLake - Reconciliation Breaks",
+  "uid": "reconlake-recon-breaks",
+  "schemaVersion": 39,
+  "panels": [
+    {"id": 1, "title": "Breaks by Category", "type": "piechart", "targets": [{"expr": "sum by (category) (reconlake_recon_breaks_total)"}]},
+    {"id": 2, "title": "High Severity Breaks", "type": "stat", "targets": [{"expr": "sum(reconlake_recon_breaks_total{severity=\"HIGH\"})"}]}
+  ]
+}

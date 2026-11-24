@@ -1,0 +1,14 @@
+dashboard_title: "ReconLake - Operations"
+description: "Daily UPI volume, settlement success rates, and PSP performance."
+role: "Gamma"  # read-only analyst role in Superset
+charts:
+  - title: "Daily Transaction Volume & Amount (INR)"
+    dataset: "gold.daily_settlement_kpis"
+    viz_type: "echarts_timeseries_bar"
+    metrics: ["SUM(total_transactions)", "SUM(total_amount_rupees)"]
+    groupby: ["event_date", "psp_app"]
+  - title: "PSP Approval Rate (%)"
+    dataset: "gold.psp_performance"
+    viz_type: "dist_bar"
+    metrics: ["AVG(approval_rate_pct)"]
+    groupby: ["psp_app"]

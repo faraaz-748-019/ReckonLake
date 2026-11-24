@@ -1,0 +1,13 @@
+dashboard_title: "ReconLake - Reconciliation"
+description: "Three-way ledger match rates, break taxonomy breakdown, and ageing queue."
+role: "Gamma"
+charts:
+  - title: "Match Rate % by PSP & Bank"
+    dataset: "gold.recon_dashboard"
+    viz_type: "big_number_total"
+    metrics: ["AVG(match_rate_pct)"]
+  - title: "Breaks by Category and Severity"
+    dataset: "raw_gold.recon_breaks"
+    viz_type: "pie"
+    metrics: ["COUNT(*)"]
+    groupby: ["category", "severity"]

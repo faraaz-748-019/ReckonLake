@@ -1,0 +1,9 @@
+{
+  "title": "ReconLake - Security Events",
+  "uid": "reconlake-security-events",
+  "schemaVersion": 39,
+  "panels": [
+    {"id": 1, "title": "Audit Chain Integrity", "type": "stat", "targets": [{"expr": "reconlake_audit_chain_valid"}]},
+    {"id": 2, "title": "TLS Certificate Expiry (Days)", "type": "gauge", "targets": [{"expr": "reconlake_tls_cert_expiry_days"}]}
+  ]
+}

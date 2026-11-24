@@ -1,0 +1,12 @@
+route:
+  group_by: ["alertname", "severity"]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+  receiver: "reconlake-ops-webhook"
+
+receivers:
+  - name: "reconlake-ops-webhook"
+    webhook_configs:
+      - url: "http://airflow:8080/health"
+        send_resolved: true

@@ -1,0 +1,8 @@
+dashboard_title: "ReconLake - Risk & Fraud Signals"
+description: "Tokenized behavioral fraud signals: mule fan-in degree and velocity bursts."
+role: "Gamma"
+charts:
+  - title: "High Fan-In Mule Candidates (Tokenized)"
+    dataset: "gold.fraud_signals"
+    viz_type: "table"
+    columns: ["vpa_token", "fan_in_degree", "inbound_count", "inbound_rupees", "max_payer_velocity"]

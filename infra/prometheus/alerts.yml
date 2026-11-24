@@ -1,0 +1,57 @@
+groups:
+  - name: reconlake_alerts
+    rules:
+      - alert: DQScoreBelowThreshold
+        expr: reconlake_dq_score < 0.90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Data Quality Score below 0.90 threshold"
+          description: "Source {{ $labels.source }} DQ score is {{ $value }}; Gold promotion halted."
+          runbook: "docs/runbooks/dq-score-below-threshold.md"
+
+      - alert: StreamLagHigh
+        expr: reconlake_stream_lag_seconds > 120
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Bronze streaming lag above 120s"
+          runbook: "docs/runbooks/stream-lag.md"
+
+      - alert: FailedAirflowDAG
+        expr: reconlake_dag_failures_total > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Airflow DAG execution failed"
+          runbook: "docs/runbooks/failed-dag.md"
+
+      - alert: QuarantineSpike
+        expr: rate(reconlake_rows_quarantined_total[5m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Quarantine rate spike detected"
+          runbook: "docs/runbooks/quarantine-spike.md"
+
+      - alert: AuditChainVerificationFailure
+        expr: reconlake_audit_chain_valid == 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Tamper-evident audit chain verification failed!"
+          runbook: "docs/runbooks/audit-chain-failure.md"
+
+      - alert: CertificateExpirySoon
+        expr: reconlake_tls_cert_expiry_days < 14
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Local TLS certificate expiring in under 14 days"
+          runbook: "docs/runbooks/certificate-expiry.md"

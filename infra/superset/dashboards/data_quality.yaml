@@ -1,0 +1,13 @@
+dashboard_title: "ReconLake - Data Quality"
+description: "Per-source per-batch Data Quality Scores and circuit breaker gate status."
+role: "Gamma"
+charts:
+  - title: "DQ Score Over Time"
+    dataset: "gold.dq_scorecard"
+    viz_type: "echarts_timeseries_line"
+    metrics: ["AVG(overall_score)"]
+    groupby: ["batch_date", "source"]
+  - title: "Circuit Breaker Gate Pass/Fail"
+    dataset: "gold.dq_scorecard"
+    viz_type: "table"
+    columns: ["batch_date", "source", "completeness", "validity", "uniqueness", "timeliness", "consistency", "overall_score", "gate_passed"]

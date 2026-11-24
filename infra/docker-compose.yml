@@ -1,0 +1,443 @@
+# ReconLake Hardened Docker Compose Stack
+# Profiles: core, streaming, governance, observability, stretch
+# Resource target: core profile fits within 8 GB RAM.
+# Security: non-root users, cap_drop ALL, no-new-privileges, Docker secrets, segmented networks.
+# Object Storage: SeaweedFS (S3 API, Apache 2.0) — MinIO is explicitly banned (ADR-0001).
+
+secrets:
+  postgres_admin_password:
+    file: ../secrets/postgres_admin_password
+  postgres_etl_writer_password:
+    file: ../secrets/postgres_etl_writer_password
+  postgres_dbt_runner_password:
+    file: ../secrets/postgres_dbt_runner_password
+  postgres_analyst_masked_password:
+    file: ../secrets/postgres_analyst_masked_password
+  postgres_auditor_readonly_password:
+    file: ../secrets/postgres_auditor_readonly_password
+  openbao_root_token:
+    file: ../secrets/openbao_root_token
+  tokenizer_hmac_key:
+    file: ../secrets/tokenizer_hmac_key
+  envelope_kek:
+    file: ../secrets/envelope_kek
+
+networks:
+  proxy_net:
+    driver: bridge
+  ingest_net:
+    driver: bridge
+    internal: true
+  data_net:
+    driver: bridge
+    internal: true
+  serving_net:
+    driver: bridge
+    internal: true
+  observability_net:
+    driver: bridge
+    internal: true
+
+volumes:
+  seaweedfs_data:
+  postgres_data:
+  kafka_data:
+  prometheus_data:
+  grafana_data:
+  marquez_data:
+
+services:
+  # ── Edge TLS Reverse Proxy (Only service exposing host ports) ─────────────
+  traefik:
+    image: traefik:v3.1.6
+    profiles: ["core", "streaming", "governance", "observability", "stretch"]
+    user: "65534:65534"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ../secrets/certs:/etc/traefik/certs:ro
+    networks:
+      - proxy_net
+      - serving_net
+      - observability_net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Object Storage: SeaweedFS (S3 API, Apache 2.0) ────────────────────────
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.76
+    profiles: ["core", "streaming", "governance", "observability", "stretch"]
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    command: >
+      server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+      -master.volumeSizeLimitMB=512
+    volumes:
+      - seaweedfs_data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    networks:
+      - ingest_net
+      - data_net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9333/cluster/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── Serving & Metadata Database: PostgreSQL 16 ────────────────────────────
+  postgres:
+    image: postgres:16.4-alpine
+    profiles: ["core", "streaming", "governance", "observability", "stretch"]
+    user: "70:70"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: reconlake
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin_password
+    secrets:
+      - postgres_admin_password
+      - postgres_etl_writer_password
+      - postgres_dbt_runner_password
+      - postgres_analyst_masked_password
+      - postgres_auditor_readonly_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
+    networks:
+      - data_net
+      - serving_net
+      - observability_net
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d reconlake"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Secret & Transit Encryption Service: OpenBao (dev mode warning!) ─────
+  openbao:
+    image: openbao/openbao:2.0.0
+    profiles: ["core", "streaming", "governance", "observability", "stretch"]
+    user: "100:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # DEV MODE WARNING: For local laptop demos only; never use -dev in production.
+    command: ["server", "-dev", "-dev-listen-address=0.0.0.0:8200"]
+    environment:
+      BAO_DEV_ROOT_TOKEN_ID_FILE: /run/secrets/openbao_root_token
+      RECONLAKE_ENV_WARNING: "DEV_MODE_LOCAL_ONLY"
+    secrets:
+      - openbao_root_token
+    networks:
+      - data_net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "bao", "status", "-address=http://127.0.0.1:8200"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── Streaming Broker: Apache Kafka in KRaft Mode (No ZooKeeper) ───────────
+  kafka:
+    image: apache/kafka:3.8.1
+    profiles: ["core", "streaming"]
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - ingest_net
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ── Processing: Apache Spark + Delta Lake (local/standalone mode) ─────────
+  spark:
+    build:
+      context: ..
+      dockerfile: infra/docker/spark/Dockerfile
+    image: reconlake-spark:latest
+    profiles: ["core", "streaming"]
+    user: "1000:1000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=512m
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      S3_ENDPOINT: http://seaweedfs:8333
+      OPENBAO_ADDR: http://openbao:8200
+      TOKENIZER_HMAC_KEY_FILE: /run/secrets/tokenizer_hmac_key
+      ENVELOPE_KEK_FILE: /run/secrets/envelope_kek
+    secrets:
+      - tokenizer_hmac_key
+      - envelope_kek
+      - postgres_etl_writer_password
+    networks:
+      - ingest_net
+      - data_net
+      - observability_net
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import pyspark, delta; print('ok')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Orchestration: Apache Airflow ─────────────────────────────────────────
+  airflow:
+    build:
+      context: ..
+      dockerfile: infra/docker/airflow/Dockerfile
+    image: reconlake-airflow:latest
+    profiles: ["streaming", "governance"]
+    user: "50000:0"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__OPENLINEAGE__TRANSPORT: '{"type": "http", "url": "http://marquez:5000"}'
+    secrets:
+      - postgres_admin_password
+      - postgres_dbt_runner_password
+    volumes:
+      - ../dags:/opt/airflow/dags:ro
+      - ../pipelines:/opt/airflow/pipelines:ro
+      - ../dbt:/opt/airflow/dbt:rw
+    networks:
+      - data_net
+      - observability_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+  # ── Governance & Lineage: Marquez (OpenLineage) ───────────────────────────
+  marquez:
+    image: marquezproject/marquez:0.49.0
+    profiles: ["governance"]
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - marquez_data:/usr/src/app/data
+    networks:
+      - data_net
+      - serving_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5001/healthcheck"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # ── BI Serving: Apache Superset ───────────────────────────────────────────
+  superset:
+    image: apache/superset:4.0.2
+    profiles: ["governance"]
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      SUPERSET_LOAD_EXAMPLES: "no"
+    volumes:
+      - ./superset/dashboards:/app/dashboards:ro
+    networks:
+      - serving_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # ── Observability: Prometheus + Grafana + Alertmanager ────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: ["observability"]
+    user: "65534:65534"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - observability_net
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    profiles: ["observability"]
+    user: "65534:65534"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - observability_net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9093/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    profiles: ["observability"]
+    user: "472:472"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - observability_net
+      - serving_net
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Stretch Services (Valkey + Keycloak) ──────────────────────────────────
+  valkey:
+    image: valkey/valkey:8.0.1-alpine
+    profiles: ["stretch"]
+    user: "999:999"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - serving_net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3

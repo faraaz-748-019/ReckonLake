@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: ReconLake
+    orgId: 1
+    folder: ReconLake
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
