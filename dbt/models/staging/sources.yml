@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  - name: raw_gold
+    schema: raw_gold
+    loaded_at_field: timestamp_utc
+    freshness:
+      warn_after: { count: 15, period: minute }
+      error_after: { count: 60, period: minute }
+    tables:
+      - name: transactions
+        description: "Tokenized Gold transaction facts loaded by Spark JDBC"
+      - name: recon_summary
+        description: "Three-way reconciliation summary counts"
+      - name: recon_breaks
+        description: "Reconciliation break details and exception statuses"
+      - name: dq_scores
+        description: "Per-source per-batch Data Quality Scores"

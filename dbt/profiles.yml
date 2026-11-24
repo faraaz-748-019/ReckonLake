@@ -1,0 +1,12 @@
+reconlake:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
+      port: 5432
+      user: "{{ env_var('DBT_RUNNER_USER', 'dbt_runner') }}"
+      password: "{{ env_var('DBT_RUNNER_PASSWORD', 'local-dev-only') }}"
+      dbname: reconlake
+      schema: gold
+      threads: 4

@@ -1,0 +1,58 @@
+version: 2
+
+models:
+  - name: daily_settlement_kpis
+    description: "Daily UPI settlement KPIs grouped by date, PSP app, and payer bank."
+    columns:
+      - name: event_date
+        tests: [not_null]
+      - name: psp_app
+        tests: [not_null]
+      - name: total_transactions
+        tests: [not_null]
+      - name: success_rate_pct
+        tests: [not_null]
+
+  - name: psp_performance
+    description: "PSP approval rates and average ticket size."
+    columns:
+      - name: psp_app
+        tests: [unique, not_null]
+
+  - name: fraud_signals
+    description: "Tokenized behavioral fraud signals (fan-in degree and velocity)."
+    columns:
+      - name: vpa_token
+        tests: [not_null]
+
+  - name: dq_scorecard
+    description: "Per-source per-batch Data Quality Score and circuit-breaker gate status."
+    columns:
+      - name: source
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["psp", "payer_bank", "switch"]
+
+  - name: recon_dashboard
+    description: "Three-way reconciliation summary mart."
+    columns:
+      - name: recon_date
+        tests: [not_null]
+      - name: matched_count
+        tests: [not_null]
+
+exposures:
+  - name: superset_exec_dashboards
+    type: dashboard
+    maturity: medium
+    url: https://localhost:8443/superset
+    description: "Four ReconLake Superset dashboards (Operations, Reconciliation, Data Quality, Risk)"
+    depends_on:
+      - ref('daily_settlement_kpis')
+      - ref('recon_dashboard')
+      - ref('dq_scorecard')
+      - ref('fraud_signals')
+    owner:
+      name: ReconLake Ops
+      email: reconlake-ops@example.invalid
