@@ -6,5 +6,8 @@ SELECT
     matched_count,
     break_count,
     quarantined_count,
-    ROUND(100.0 * matched_count / NULLIF(total_transactions, 0), 2) AS match_rate_pct
+    ROUND(
+        100.0 * matched_count / NULLIF(total_transactions, 0),
+        2
+    ) AS match_rate_pct
 FROM {{ source('raw_gold', 'recon_summary') }}

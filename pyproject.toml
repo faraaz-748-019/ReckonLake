@@ -76,8 +76,8 @@ airflow = [
 dbt = [
   "dbt-core==1.8.5",
   "dbt-postgres==1.8.5",
-  "sqlfluff==3.2.5",
-  "sqlfluff-templater-dbt==3.2.5",
+  "sqlfluff==4.2.0",
+  "sqlfluff-templater-dbt==4.2.0",
 ]
 
 quality = [

@@ -18,7 +18,7 @@ jobs:
       - name: Install lint dependencies
         run: |
           pip install --upgrade pip
-          pip install ruff==0.6.9 sqlfluff==3.2.5
+          pip install ruff==0.6.9 sqlfluff==4.2.0
       - name: Run ruff
         run: ruff check . --output-format=github
       - name: Run sqlfluff

@@ -19,7 +19,7 @@ repos:
           - types-jsonschema==4.23.0.20240813
 
   - repo: https://github.com/sqlfluff/sqlfluff
-    rev: 3.2.5
+    rev: 4.2.0
     hooks:
       - id: sqlfluff-lint
         args: [--dialect, postgres]

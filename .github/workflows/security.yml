@@ -57,8 +57,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[security]"
-      - run: pip-audit --format json --output pip-audit-report.json
+      - run: |
+          pip install --upgrade pip setuptools wheel
+          pip install -e ".[security]"
+      - run: pip-audit --skip-editable --format json --output pip-audit-report.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -72,9 +74,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install and run gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz \
+            | tar -xz -C /tmp gitleaks
+          /tmp/gitleaks detect --source . --redact --verbose --exit-code 1
 
   trivy:
     name: Filesystem & Config Scan (trivy)
